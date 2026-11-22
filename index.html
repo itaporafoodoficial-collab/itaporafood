@@ -559,9 +559,12 @@ function adClick(i){const a=S.ads[i],u=waFix(url(a&&a.link_url));if(!u)return;tr
 
 /* ===== Anúncio especial: abre uma vez por visita, depois da tela de carregamento ===== */
 const SP={i:0,done:false,t:null,gap:180000}; /* gap = intervalo entre anúncios especiais: 3 minutos */
+/* lembra qual anúncio especial foi mostrado por último; a cada abertura do app começa pelo PRÓXIMO da fila */
+const SP_KEY="itapora_sp_ultimo";
+function spStart(){const l=S.specials||[];if(!l.length)return 0;const last=LS.g(SP_KEY);if(last==null)return 0;const j=l.findIndex(a=>String(a.id)===String(last));return j<0?0:(j+1)%l.length}
 function maybeSpecial(){
 if(SP.done||$("splash")||OFF.on||!(S.specials||[]).length)return;
-SP.done=true;SP.i=0;spShow();
+SP.done=true;SP.i=spStart();spShow();
 }
 function spShow(k){
 k=k||0;const list=S.specials||[],n=list.length,box=$("spad");if(!n||!box)return;
@@ -575,7 +578,7 @@ const btns=L.length?`<div class="spb">${L.map(x=>`<a href="${esc(x[0])}" ${x[0].
 const txt=a.subtitle||L.length?`<div class="spt">${a.subtitle?`<h3>${esc(a.subtitle)}</h3>`:""}${btns}</div>`:"";
 box.innerHTML=`<div class="spc" role="dialog" aria-modal="true" aria-label="${esc(a.subtitle||"Aviso")}"><div class="spi"><button type="button" class="spx" onclick="spClose()" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button><div class="spm">${v?`<video id="spv" src="${esc(v)}" ${im?`poster="${esc(im)}"`:""} playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload noplaybackrate noremoteplayback" oncontextmenu="return false"></video>`:`<img src="${esc(im)}" alt="${esc(a.subtitle||"Aviso")}" draggable="false">`}</div>${txt}</div></div>`;
 box.hidden=false;void box.offsetWidth;box.classList.add("show");document.body.style.overflow="hidden";
-track("ad_view",a.id);
+track("ad_view",a.id);LS.s(SP_KEY,String(a.id));
 const vd=$("spv");
 if(vd){
 vd.muted=false;vd.volume=1;const p=vd.play();
