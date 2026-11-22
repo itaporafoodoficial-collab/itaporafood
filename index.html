@@ -558,15 +558,17 @@ document.querySelectorAll("#slides button[aria-label$=som]").forEach(b=>{b.setAt
 function adClick(i){const a=S.ads[i],u=waFix(url(a&&a.link_url));if(!u)return;track("ad_click",a.id);window.open(u,"_blank","noopener")}
 
 /* ===== Anúncio especial: abre uma vez por visita, depois da tela de carregamento ===== */
-const SP={i:0,done:false};
+const SP={i:0,done:false,t:null,gap:180000}; /* gap = intervalo entre anúncios especiais: 3 minutos */
 function maybeSpecial(){
 if(SP.done||$("splash")||OFF.on||!(S.specials||[]).length)return;
 SP.done=true;SP.i=0;spShow();
 }
-function spShow(){
-const a=(S.specials||[])[SP.i],box=$("spad");if(!a||!box)return;
+function spShow(k){
+k=k||0;const list=S.specials||[],n=list.length,box=$("spad");if(!n||!box)return;
+if(document.hidden||OFF.on||!box.hidden){clearTimeout(SP.t);SP.t=setTimeout(spShow,30000);return}
+SP.i%=n;const a=list[SP.i];
 const vu=a.video_url?splitFrame(a.video_url).u:"",v=media(vu,"video"),im=media(splitFrame(a.image_url).u,"image");
-if(!v&&!im){SP.i++;return spShow()}
+if(!v&&!im){if(k>=n)return;SP.i=(SP.i+1)%n;return spShow(k+1)}
 const ph=String(a.phone||"").replace(/\D/g,""),num=ph&&ph.length<=11?"55"+ph:ph;
 const L=[[num&&waFix("https://wa.me/"+num),"fa-brands fa-whatsapp","#16a34a","WhatsApp"],[num&&"tel:+"+num,"fa-solid fa-phone","#475569","Ligar"],[url(a.facebook),"fa-brands fa-facebook-f","#1877F2","Facebook"],[url(a.instagram),"fa-brands fa-instagram","linear-gradient(45deg,#F9A825,#E1306C,#7B3FBF)","Instagram"],[url(a.site_url),"fa-solid fa-globe","#dc2626","Site"]].filter(x=>x[0]);
 const btns=L.length?`<div class="spb">${L.map(x=>`<a href="${esc(x[0])}" ${x[0].startsWith("http")?'target="_blank" rel="noopener"':""} data-id="${esc(String(a.id))}" onclick="track('ad_click',this.dataset.id)" style="background:${x[2]}"><i class="${x[1]}"></i>${x[3]}</a>`).join("")}</div>`:"";
@@ -586,7 +588,8 @@ const box=$("spad"),vd=$("spv");
 if(vd){try{vd.pause();vd.removeAttribute("src");vd.load()}catch(e){}}
 if(box){box.classList.remove("show");box.hidden=true;box.innerHTML=""}
 document.body.style.overflow="";
-SP.i++;if((S.specials||[])[SP.i])setTimeout(spShow,300);
+/* próximo anúncio da fila só volta depois de 3 minutos, em loop infinito */
+const n=(S.specials||[]).length;if(n){SP.i=(SP.i+1)%n;clearTimeout(SP.t);SP.t=setTimeout(spShow,SP.gap)}
 }
 addEventListener("keydown",e=>{if(e.key==="Escape"&&$("spad")&&!$("spad").hidden)spClose()});
 
@@ -617,7 +620,7 @@ ${g.length>1?`<div class="flex gap-3 mt-4 overflow-x-auto no-bar p-1">${g.map((u
 }
 function drawStore(s){
 const st=status(s),n=msNow(),ok=st.open&&/^\d{10,15}$/.test(s.phone||"");
-const soc=[[s.instagram,"fa-instagram","linear-gradient(45deg,#F9A825,#E1306C,#7B3FBF)","Instagram"],[s.facebook,"fa-facebook-f","#1877F2","Facebook"],[s.maps_url,"fa-location-arrow","#475569","Como chegar"]].filter(x=>url(x[0]));
+const soc=[[s.instagram,"fa-brands fa-instagram","linear-gradient(45deg,#F9A825,#E1306C,#7B3FBF)","Instagram"],[s.facebook,"fa-brands fa-facebook-f","#1877F2","Facebook"],[s.maps_url,"fa-solid fa-location-dot","#475569","Como chegar"]].filter(x=>url(x[0]));
 const rows=[0,1,2,3,4,5,6].map(d=>{const h=s.hours&&s.hours[d],hoje=d==n.dow;return`<div class="flex justify-between px-4 py-4 border-t border-slate-200 text-lg ${hoje?"bg-red-50 font-bold":""}"><span>${DIAS_FULL[d]}${hoje?" (hoje)":""}</span><span>${h?h[0]+" às "+h[1]:"Fechado"}</span></div>`}).join("");
 const rec=s.delivery_mode=="retirada"?[["fa-bag-shopping","Retirada no local"]]:s.delivery_mode=="entrega"?[["fa-motorcycle","Entrega · "+(s.fee>0?money(s.fee):"grátis")]]:[["fa-motorcycle","Entrega · "+(s.fee>0?money(s.fee):"grátis")],["fa-bag-shopping","Retirada no local"]];
 const menu=(s.menu||[]);
@@ -637,7 +640,7 @@ ${s.description?`<p class="text-slate-500 text-xl mt-7">${esc(s.description)}</p
 <p class="flex items-start gap-4 text-lg text-red-700 mt-4"><i class="fa-solid fa-location-dot text-2xl w-7 text-center mt-0.5"></i><span>${esc(s.address||"Itaporã - MS")}${s.reference?`<br><span class="text-slate-500 text-base">Referência: ${esc(s.reference)}</span>`:""}</span></p>
 <h2 class="text-2xl font-bold mt-8 flex items-center gap-3"><i class="fa-regular fa-clock"></i> Horários</h2>
 <div class="mt-4 border-b border-slate-200">${rows}</div>
-${soc.length?`<div class="flex gap-2 flex-wrap mt-6">${soc.map(x=>`<a href="${esc(url(x[0]))}" target="_blank" rel="noopener" class="flex-1 min-w-[110px] text-center text-white text-sm font-bold py-3 rounded-full" style="background:${x[2]}"><i class="fa-brands ${x[1]} mr-1"></i>${x[3]}</a>`).join("")}</div>`:""}
+${soc.length?`<div class="flex gap-2 flex-wrap mt-6">${soc.map(x=>`<a href="${esc(url(x[0]))}" target="_blank" rel="noopener" class="flex-1 min-w-[110px] text-center text-white text-sm font-bold py-3 rounded-full" style="background:${x[2]}">${x[3]=="Como chegar"?`<span style="display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#fff;color:#ef4444;margin-right:6px;vertical-align:-4px"><i class="${x[1]}" style="font-size:13px"></i></span>`:`<i class="${x[1]} mr-1"></i>`}${x[3]}</a>`).join("")}</div>`:""}
 <div class="flex items-center justify-between mt-6 bg-amber-50 rounded-2xl p-4"><span class="text-sm font-bold text-amber-900">Avalie o atendimento:</span><div class="flex gap-1">${[1,2,3,4,5].map(n=>`<button onclick="rate(${n})" aria-label="${n} estrelas" class="text-amber-400 text-xl hover:scale-125 transition"><i class="fa-star ${n<=Math.round(s.rating)?"fa-solid":"fa-regular"}"></i></button>`).join("")}</div></div>
 <button onclick="order('${esc(s.id)}')" class="w-full mt-6 py-5 rounded-full text-xl font-semibold flex items-center justify-center gap-3 transition ${ok?"bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-200":"bg-slate-100 text-slate-400"}"><i class="${ok?"fa-brands fa-whatsapp text-3xl":"fa-regular fa-comment text-3xl"}"></i> ${ok?"Pedir Cardápio pelo WhatsApp":"Pedir pelo WhatsApp"}</button>
 ${st.open?"":`<p class="text-red-700 text-lg mt-5">Estamos fechados no momento. Volte no horário de atendimento.</p>`}
@@ -657,6 +660,8 @@ toast("Obrigado pela avaliação!");route();renderStores();
 }
 
 /* ===== Pedido via WhatsApp ===== */
+/* Endereço do app (funciona na raiz do domínio e em subpasta, como GitHub Pages) */
+const APP_URL=location.origin+location.pathname.replace(/[^/]*$/,"");
 const WA_MSG="Olá, vim pelo ItaporãFood+";
 /* Todo link wa.me de anúncio abre com a mensagem padrão (substitui textos antigos já salvos) */
 function waFix(u){const m=String(u||"").match(/^https?:\/\/wa\.me\/(\d+)/i);return m?"https://wa.me/"+m[1]+"?text="+encodeURIComponent(WA_MSG):u}
@@ -723,7 +728,7 @@ afterAuth();
 async function doReset(){
 const e=val("le");if(!e)return msg("Digite seu e-mail acima e toque de novo.");
 if(!sb)return msg("Recuperação disponível quando o Supabase estiver configurado.");
-const r=await sb.auth.resetPasswordForEmail(e,{redirectTo:location.origin});
+const r=await sb.auth.resetPasswordForEmail(e,{redirectTo:APP_URL});
 msg(r.error?"Não foi possível enviar agora.":"Enviamos o link para o seu e-mail.",!r.error);
 }
 function openSignup(){
@@ -743,7 +748,7 @@ if(p.length<6)return msg("A senha precisa ter ao menos 6 caracteres.");
 if(f.replace(/\D/g,"").length<10)return msg("Informe um telefone com DDD.");
 if(a.length<8)return msg("Informe o endereço principal de entrega.");
 if(sb){
-const r=await sb.auth.signUp({email:e,password:p,options:{data:{name:n,phone:f,address:a}}});
+const r=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:APP_URL,data:{name:n,phone:f,address:a}}});
 if(r.error)return msg(/registered/i.test(r.error.message)?"Este e-mail já tem cadastro. Use Entrar.":"Não foi possível cadastrar agora.");
 if(!r.data.session)return msg("Enviamos um e-mail de confirmação. Confirme e depois toque em Entrar.",true);
 await sb.from("profiles").upsert({id:r.data.user.id,name:n,phone:f,address:a});
