@@ -753,9 +753,10 @@ if(a.length<8)return msg("Informe o endereço principal de entrega.");
 if(sb){
 const r=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:APP_URL,data:{name:n,phone:f,address:a}}});
 if(r.error)return msg(/registered/i.test(r.error.message)?"Este e-mail já tem cadastro. Use Entrar.":"Não foi possível cadastrar agora.");
-if(!r.data.session)return msg("Enviamos um e-mail de confirmação. Confirme e depois toque em Entrar.",true);
-await sb.from("profiles").upsert({id:r.data.user.id,name:n,phone:f,address:a});
-S.user={id:r.data.user.id,email:e,name:n,phone:f,address:a};hdr();
+let usr=r.data.user;
+if(!r.data.session){const lg=await sb.auth.signInWithPassword({email:e,password:p});if(lg.error)return msg("Enviamos um e-mail de confirmação. Confirme e depois toque em Entrar.",true);usr=lg.data.user}
+await sb.from("profiles").upsert({id:usr.id,name:n,phone:f,address:a});
+S.user={id:usr.id,email:e,name:n,phone:f,address:a};hdr();
 }else{
 const L=LS.g("if_acc")||[];L.push({email:e,pw:p,name:n,phone:f,address:a});LS.s("if_acc",L);
 S.user={id:"demo",email:e,name:n,phone:f,address:a};LS.s("if_user",S.user);hdr();
