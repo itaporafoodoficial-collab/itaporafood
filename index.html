@@ -230,6 +230,7 @@ input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-sea
       <a id="supWa" href="#" target="_blank" rel="noopener" onclick="track('support_whatsapp')" class="flex items-center gap-3 pl-6 pr-4 py-3 hover:bg-emerald-50"><i class="fa-brands fa-whatsapp text-2xl text-emerald-600 w-6 text-center"></i><span class="text-sm leading-tight"><b class="block">WhatsApp</b><span class="text-slate-500">(67) 9 8105-3601</span></span></a>
       <a id="supMail" class="flex items-center gap-3 pl-6 pr-4 py-3"><i class="fa-solid fa-envelope text-xl text-slate-500 w-6 text-center"></i><span class="text-sm leading-tight"><b class="block">E-mail</b><span id="supMailTxt" class="text-slate-500"></span></span></a>
     </div></div>
+    <button id="instBtn" hidden onclick="menuGo('openInstall')" class="w-full flex items-center gap-3 px-4 py-3.5 text-left font-semibold hover:bg-slate-50"><i class="fa-solid fa-download w-5 text-center text-red-600"></i>Instalar app</button>
   </nav>
   <div id="drawerOut" class="p-4 border-t border-slate-100" hidden><button onclick="menuGo('logout')" class="w-full py-3 rounded-2xl bg-slate-100 hover:bg-slate-200 font-bold text-sm"><i class="fa-solid fa-right-from-bracket mr-1.5"></i>Sair da conta</button></div>
 </aside>
@@ -333,6 +334,10 @@ function nextOpen(s,n){for(let i=1;i<=7;i++){const d=(n.dow+i)%7;if(s.hours&&s.h
 function status(s){
 const n=msNow();
 if((s.closed_dates||[]).includes(n.date))return{open:false,msg:"Fechado hoje · "+nextOpen(s,n)};
+/* faixa de ontem que passa da meia-noite (ex.: 18:00 às 01:00) ainda vale até o horário de fechar */
+const yd=new Date(n.date+"T12:00:00Z");yd.setUTCDate(yd.getUTCDate()-1);
+const ph=s.hours&&s.hours[(n.dow+6)%7];
+if(ph&&!(s.closed_dates||[]).includes(yd.toISOString().slice(0,10))){const po=toM(ph[0]),pc=toM(ph[1]);if(pc<=po&&n.min<pc)return{open:true,msg:"Aberto até "+ph[1]}}
 const h=s.hours&&s.hours[n.dow];
 if(!h)return{open:false,msg:nextOpen(s,n)};
 const o=toM(h[0]);let c=toM(h[1]);if(c<=o)c+=1440;
@@ -768,7 +773,7 @@ const fieldV=(id,label,type,ac,v="")=>`<label class="block text-sm font-semibold
 
 /* ----- Menu hambúrguer ----- */
 function openMenu(){
-const u=S.user;
+const u=S.user;$("instBtn").hidden=isStandalone();
 $("drawerUser").innerHTML=u?`Olá, <b class="text-slate-800">${esc(String(u.name||"").split(" ")[0])}</b>`:`Você não está conectado. <a onclick="menuGo('openLogin')" class="text-red-600 font-bold underline cursor-pointer">Entrar</a>`;
 $("drawerOut").hidden=!u;
 $("supWa").href=`https://wa.me/${SUPPORT_WA}?text=${encodeURIComponent("Olá! Preciso de suporte no Itaporã Food+.")}`;
@@ -785,6 +790,35 @@ document.body.style.overflow="";$("supSub").classList.remove("open");$("supBtn")
 function toggleSup(){const o=$("supSub").classList.toggle("open");$("supBtn").setAttribute("aria-expanded",o);$("supChev").style.transform=o?"rotate(180deg)":""}
 function menuGo(fn){closeMenu();setTimeout(()=>window[fn](),200)}
 addEventListener("keydown",e=>{if(e.key==="Escape"&&$("drawer").classList.contains("open"))closeMenu()});
+
+/* ----- Instalar app (PWA) ----- */
+const isStandalone=()=>{try{return matchMedia("(display-mode: standalone)").matches||matchMedia("(display-mode: fullscreen)").matches||matchMedia("(display-mode: minimal-ui)").matches||navigator.standalone===true}catch(e){return false}};
+let deferredInstall=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstall=e});
+addEventListener("appinstalled",()=>{deferredInstall=null});
+async function doInstall(){
+if(!deferredInstall)return;
+const ev=deferredInstall;deferredInstall=null;
+try{ev.prompt();const r=await ev.userChoice;closeModal();if(r&&r.outcome==="accepted")toast("Instalando o app...")}catch(e){closeModal()}
+}
+function openInstall(){
+if(isStandalone())return toast("O app já está instalado neste aparelho.");
+const UA=navigator.userAgent||"";
+const ios=/iPad|iPhone|iPod/.test(UA)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const and=/Android/i.test(UA);
+const inApp=/FBAN|FBAV|Instagram|Line\/|MicroMessenger|WhatsApp|Snapchat|TikTok|; wv\)/i.test(UA)||(ios&&!/Safari\//.test(UA));
+const warn=t=>`<p class="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-3"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${t}</p>`;
+const card=(on,icon,title,body)=>`<div class="rounded-2xl border p-4 mt-3 ${on?"border-red-500 ring-2 ring-red-100 bg-red-50/40":"border-slate-200"}"><div class="flex items-center gap-2"><i class="${icon} text-xl ${on?"text-red-600":"text-slate-500"}"></i><b class="text-base">${title}</b>${on?'<span class="ml-auto text-[11px] font-extrabold bg-red-600 text-white px-2 py-0.5 rounded-full">Seu aparelho</span>':""}</div>${body}</div>`;
+const android=card(and,"fa-brands fa-android","Android",
+(and&&inApp?warn("Você está num navegador dentro de outro app. Abra este endereço no <b>Chrome</b> para instalar."):"")+
+(deferredInstall
+?`<p class="text-sm text-slate-600 mt-2">Toque no botão para instalar o Itaporã Food+ na tela inicial.</p><button onclick="doInstall()" class="w-full mt-3 py-3.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl"><i class="fa-solid fa-download mr-1.5"></i>Instalar agora</button>`
+:`<ol class="text-sm text-slate-600 mt-2 space-y-1.5 list-decimal pl-5"><li>Toque nos <b>três pontinhos (⋮)</b> do navegador.</li><li>Escolha <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.</li><li>Confirme em <b>Instalar</b>.</li></ol>`));
+const iphone=card(ios,"fa-brands fa-apple","iPhone (iOS)",
+(ios&&inApp?warn("Você está num navegador dentro de outro app (WhatsApp, Instagram...). Toque nos três pontinhos ou no ícone de bússola e escolha <b>Abrir no Safari</b>."):"")+
+`<ol class="text-sm text-slate-600 mt-2 space-y-1.5 list-decimal pl-5"><li>Abra este endereço no <b>Safari</b>.</li><li>Toque em <b>Compartilhar</b> <i class="fa-solid fa-arrow-up-from-bracket mx-0.5"></i> (barra de baixo).</li><li>Escolha <b>Adicionar à Tela de Início</b>.</li><li>Toque em <b>Adicionar</b>.</li></ol><p class="text-xs text-slate-500 mt-2">O iPhone não permite instalar com um toque; é preciso seguir estes passos.</p>`);
+modal(`<div class="p-5 pt-6">${closeBtnL}<h2 class="text-xl font-extrabold">Instalar o app</h2><p class="text-sm text-slate-500 mt-1">Tenha o Itaporã Food+ na tela inicial, como um aplicativo.</p>${ios?iphone+android:android+iphone}<button onclick="closeModal()" class="w-full mt-4 py-3.5 bg-slate-100 hover:bg-slate-200 font-bold rounded-2xl">Fechar</button></div>`);
+}
 
 /* ----- Perfil ----- */
 function openProfile(){

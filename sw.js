@@ -1,5 +1,5 @@
 /* Itaporã Food+ — service worker. Para publicar uma atualização, troque VERSION (v10, v11...). */
-const VERSION = "v15";
+const VERSION = "v16";
 const CORE = "itapora-core-" + VERSION, RUNTIME = "itapora-rt-" + VERSION, IMGS = "itapora-img-" + VERSION;
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 const CDN = ["cdn.tailwindcss.com", "cdnjs.cloudflare.com", "cdn.jsdelivr.net", "fonts.googleapis.com", "fonts.gstatic.com"];
