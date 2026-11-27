@@ -1182,6 +1182,12 @@ function spForm(id) {
       <p class="text-[11px] text-slate-500 mt-1">No app o vídeo toca com som, sem botão de mudo, pausa ou barra de avanço. O card ocupa boa parte da tela; formato vertical ou quadrado funciona melhor. Vídeo até 20 MB. Se enviar imagem e vídeo, a imagem vira a capa do vídeo.</p>
     </div>
 
+    <div>
+      <label class="admin-label">Segundos Exibidos na Tela</label>
+      <input id="sp_sec" type="number" min="3" max="60" class="admin-input" value="${F.seconds || +S.cfg.ad_default_seconds || 15}">
+      <p class="text-[11px] text-slate-500 mt-1">Se a pessoa não fechar o card, o app passa sozinho para o próximo anúncio especial depois desse tempo. Vídeo mais curto que o tempo: repete até completar. Mais longo: corta ao fim do tempo.</p>
+    </div>
+
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
       <div>
         <label class="admin-label">Telefone / WhatsApp</label>
@@ -1248,7 +1254,7 @@ async function saveSp() {
   const row = {
     kind: "special", title: val("sp_t"), subtitle: val("sp_s") || null, client: null,
     image_url: F.image_url || null, video_url: F.video_url || null, link_url: null, button_text: null,
-    seconds: F.seconds || 15, phone: nph(val("sp_ph")) || null, facebook: lk(val("sp_fb")),
+    seconds: Math.min(60, Math.max(3, Math.round(+val("sp_sec") || F.seconds || 15))), phone: nph(val("sp_ph")) || null, facebook: lk(val("sp_fb")),
     instagram: ig(val("sp_ig")), site_url: lk(val("sp_site")),
     daily_price: F.daily_price ?? null, price: F.daily_price ? +(F.daily_price * F.days.length).toFixed(2) : null,
     days: F.days, active: $("sp_act").checked

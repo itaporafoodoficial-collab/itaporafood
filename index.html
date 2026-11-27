@@ -578,7 +578,7 @@ document.querySelectorAll("#slides button[aria-label$=som]").forEach(b=>{b.setAt
 function adClick(i){const a=S.ads[i],u=waFix(url(a&&a.link_url));if(!u)return;track("ad_click",a.id);window.open(u,"_blank","noopener")}
 
 /* ===== Anúncio especial: abre uma vez por visita, depois da tela de carregamento ===== */
-const SP={i:0,done:false,t:null,gap:180000}; /* gap = intervalo entre anúncios especiais: 3 minutos */
+const SP={i:0,done:false,t:null,adv:null,gap:120000}; /* gap = espera entre anúncios especiais depois que a pessoa fecha: 2 minutos */
 /* lembra qual anúncio especial foi mostrado por último; a cada abertura do app começa pelo PRÓXIMO da fila */
 const SP_KEY="itapora_sp_ultimo";
 function spStart(){const l=S.specials||[];if(!l.length)return 0;const last=LS.g(SP_KEY);if(last==null)return 0;const j=l.findIndex(a=>String(a.id)===String(last));return j<0?0:(j+1)%l.length}
@@ -586,17 +586,18 @@ function maybeSpecial(){
 if(SP.done||$("splash")||OFF.on||!(S.specials||[]).length)return;
 SP.done=true;SP.i=spStart();spShow();
 }
-function spShow(k){
+function spShow(k,swap){
 k=k||0;const list=S.specials||[],n=list.length,box=$("spad");if(!n||!box)return;
-if(document.hidden||OFF.on||!box.hidden){clearTimeout(SP.t);SP.t=setTimeout(spShow,30000);return}
+if(swap){const ov=$("spv");if(ov){try{ov.pause();ov.removeAttribute("src");ov.load()}catch(e){}}}
+else if(document.hidden||OFF.on||!box.hidden){clearTimeout(SP.t);SP.t=setTimeout(spShow,30000);return}
 SP.i%=n;const a=list[SP.i];
 const vu=a.video_url?splitFrame(a.video_url).u:"",v=media(vu,"video"),im=media(splitFrame(a.image_url).u,"image");
-if(!v&&!im){if(k>=n)return;SP.i=(SP.i+1)%n;return spShow(k+1)}
+if(!v&&!im){if(k>=n)return;SP.i=(SP.i+1)%n;return spShow(k+1,swap)}
 const ph=String(a.phone||"").replace(/\D/g,""),num=ph&&ph.length<=11?"55"+ph:ph;
 const L=[[num&&waFix("https://wa.me/"+num),"fa-brands fa-whatsapp","#16a34a","WhatsApp"],[num&&"tel:+"+num,"fa-solid fa-phone","#475569","Ligar"],[url(a.facebook),"fa-brands fa-facebook-f","#1877F2","Facebook"],[url(a.instagram),"fa-brands fa-instagram","linear-gradient(45deg,#F9A825,#E1306C,#7B3FBF)","Instagram"],[url(a.site_url),"fa-solid fa-globe","#dc2626","Site"]].filter(x=>x[0]);
 const btns=L.length?`<div class="spb">${L.map(x=>`<a href="${esc(x[0])}" ${x[0].startsWith("http")?'target="_blank" rel="noopener"':""} data-id="${esc(String(a.id))}" onclick="track('ad_click',this.dataset.id)" style="background:${x[2]}"><i class="${x[1]}"></i>${x[3]}</a>`).join("")}</div>`:"";
 const txt=a.subtitle||L.length?`<div class="spt">${a.subtitle?`<h3>${esc(a.subtitle)}</h3>`:""}${btns}</div>`:"";
-box.innerHTML=`<div class="spc" role="dialog" aria-modal="true" aria-label="${esc(a.subtitle||"Aviso")}"><div class="spi"><button type="button" class="spx" onclick="spClose()" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button><div class="spm">${v?`<video id="spv" src="${esc(v)}" ${im?`poster="${esc(im)}"`:""} playsinline preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload noplaybackrate noremoteplayback" oncontextmenu="return false"></video>`:`<img src="${esc(im)}" alt="${esc(a.subtitle||"Aviso")}" draggable="false">`}</div>${txt}</div></div>`;
+box.innerHTML=`<div class="spc" role="dialog" aria-modal="true" aria-label="${esc(a.subtitle||"Aviso")}"><div class="spi"><button type="button" class="spx" onclick="spClose()" aria-label="Fechar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M5 5l14 14M19 5L5 19"/></svg></button><div class="spm">${v?`<video id="spv" src="${esc(v)}" ${im?`poster="${esc(im)}"`:""} playsinline loop preload="auto" disablepictureinpicture disableremoteplayback controlslist="nodownload noplaybackrate noremoteplayback" oncontextmenu="return false"></video>`:`<img src="${esc(im)}" alt="${esc(a.subtitle||"Aviso")}" draggable="false">`}</div>${txt}</div></div>`;
 box.hidden=false;void box.offsetWidth;box.classList.add("show");document.body.style.overflow="hidden";
 track("ad_view",a.id);LS.s(SP_KEY,String(a.id));
 const vd=$("spv");
@@ -605,13 +606,22 @@ vd.muted=false;vd.volume=1;const p=vd.play();
 /* se o navegador bloquear o som sem toque, começa mudo e liga o som no primeiro toque na tela */
 if(p&&p.catch)p.catch(()=>{vd.muted=true;vd.play().catch(()=>{});const un=()=>{vd.muted=false;vd.volume=1};["pointerdown","touchstart","keydown"].forEach(e=>addEventListener(e,un,{once:true,capture:true}))});
 }
+/* sem toque na tela: depois do "tempo de tela" do anúncio, passa sozinho para o próximo da fila */
+clearTimeout(SP.adv);if(n>1)SP.adv=setTimeout(spAuto,adSecs(a)*1000);
+}
+function spAuto(){
+const box=$("spad"),n=(S.specials||[]).length;
+if(!box||box.hidden||n<2)return;
+if(document.hidden){clearTimeout(SP.adv);SP.adv=setTimeout(spAuto,3000);return}
+SP.i=(SP.i+1)%n;spShow(0,true);
 }
 function spClose(){
+clearTimeout(SP.adv);
 const box=$("spad"),vd=$("spv");
 if(vd){try{vd.pause();vd.removeAttribute("src");vd.load()}catch(e){}}
 if(box){box.classList.remove("show");box.hidden=true;box.innerHTML=""}
 document.body.style.overflow="";
-/* próximo anúncio da fila só volta depois de 3 minutos, em loop infinito */
+/* fechou: o próximo da fila só volta depois de 2 minutos, em loop infinito */
 const n=(S.specials||[]).length;if(n){SP.i=(SP.i+1)%n;clearTimeout(SP.t);SP.t=setTimeout(spShow,SP.gap)}
 }
 addEventListener("keydown",e=>{if(e.key==="Escape"&&$("spad")&&!$("spad").hidden)spClose()});
