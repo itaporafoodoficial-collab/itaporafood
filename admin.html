@@ -159,9 +159,17 @@ const $ = id => document.getElementById(id);
 
 const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-const DEF_CATS = [["Pizzarias", "🍕"], ["Lanchonetes", "🍔"], ["Espetinhos", "🍢"], ["Sorveterias", "🍨"], ["Padarias", "🥖"], ["Restaurantes", "🍽️"], ["Mercados", "🛒"], ["Distribuidoras de bebidas", "🍺"], ["Comida japonesa", "🍣"], ["Hortifrúti", "🥬"], ["Açougue", "🥩"], ["Farmácia", "💊"], ["Borracharia", "🛞"], ["Borracharia Móvel", "🛠️"], ["Autopeças", "⚙️"], ["Materiais de Construção", "🧱"], ["Auto Elétrica", "🔌"], ["Gás e Água", "💧"], ["Pet Shop", "🐶"], ["Moda", "👗"], ["Perfumaria / Cosméticos", "💄"], ["Papelaria / Variedades", "✏️"], ["Prestadores de Serviços", "🧰"], ["Fretes e Mudanças", "🚚"], ["Outros", "✨"]];
+const DEF_CATS = [["Pizzarias", "🍕"], ["Lanchonetes", "🍔"], ["Espetinhos", "🍢"], ["Sorveterias", "🍨"], ["Padarias", "🥖"], ["Restaurantes", "🍽️"], ["Mercados", "🛒"], ["Distribuidoras de bebidas", "🍺"], ["Comida japonesa", "🍣"], ["Hortifrúti", "🥬"], ["Açougue", "🥩"], ["Farmácia", "💊"], ["Borracharia", "🛞"], ["Borracharia Móvel", "🛠️"], ["Autopeças", "⚙️"], ["Materiais de Construção", "🧱"], ["Auto Elétrica", "🔌"], ["Gás e Água", "💧"], ["Pet Shop", "🐶"], ["Moda", "👗"], ["Perfumaria / Cosméticos", "💄"], ["Papelaria / Variedades", "✏️"], ["Prestadores de Serviços", "🧰"], ["Fretes e Mudanças", "🚚"], ["Barbearia","💈"],["Academia","🏋️"],["Lava Rápido","🚗"],["Posto de Gasolina","⛽"],["Serralheiro","🛠️"],["Bicicletaria","🚲"],["Outros", "✨"]];
 /* Categorias do app: vêm de Ajustes (setting "categories"); sem ela, usa a lista padrão acima */
-const catList = () => { try { const a = JSON.parse(S.cfg.categories); if (Array.isArray(a) && a.length) return a.filter(x => x && x.n); } catch (e) {} return DEF_CATS.map(([n, e]) => ({ n, e })); };
+/* Categorias novas: se a lista salva em Ajustes ainda não tem nenhuma delas, entram junto das existentes (antes de "Outros") */
+const NEW_CATS=[["Barbearia","💈"],["Academia","🏋️"],["Lava Rápido","🚗"],["Posto de Gasolina","⛽"],["Serralheiro","🛠️"],["Bicicletaria","🚲"]];
+function mergeNewCats(L){
+const low=n=>String(n).trim().toLowerCase();
+if(NEW_CATS.some(x=>L.some(c=>low(c.n)===low(x[0]))))return L;
+const add=NEW_CATS.map(([n,e])=>({n,e})),k=L.findIndex(c=>low(c.n)==="outros");
+return k<0?[...L,...add]:[...L.slice(0,k),...add,...L.slice(k)];
+}
+const catList = () => mergeNewCats((() => { try { const a = JSON.parse(S.cfg.categories); if (Array.isArray(a) && a.length) return a.filter(x => x && x.n); } catch (e) {} return DEF_CATS.map(([n, e]) => ({ n, e })); })());
 
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const img = u => /^(https?:\/\/|data:image\/)/i.test(u || "") ? u : "";
@@ -619,8 +627,9 @@ function storeForm(id) {
     </div>
 
     <div>
-      <label class="admin-label">Descrição (aparece na página do comércio)</label>
-      <input id="f_desc" class="admin-input" value="${esc(F.description || "")}" placeholder="Ex.: Hambúrgueres artesanais, todas as noites.">
+      <label class="admin-label">Descrição (aparece na página do comércio — até 300 caracteres)</label>
+      <textarea id="f_desc" class="admin-input" rows="4" maxlength="300" style="resize:vertical" oninput="$('f_desc_n').textContent=this.value.length" placeholder="Ex.: Hambúrgueres artesanais, todas as noites. Fale um pouco sobre o comércio.">${esc(F.description || "")}</textarea>
+      <p class="text-[11px] text-slate-400 mt-1"><span id="f_desc_n">${(F.description || "").length}</span>/300 caracteres</p>
     </div>
 
     <div>
